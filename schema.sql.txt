@@ -1,0 +1,136 @@
+-- ============================================
+-- PRACTO HEALTHCARE DATABASE SCHEMA
+-- ============================================
+
+-- 1️⃣ Create Schema
+CREATE SCHEMA IF NOT EXISTS practo;
+SET search_path TO practo;
+
+-- ============================================
+-- 2️⃣ Patients Table
+-- ============================================
+CREATE TABLE patients (
+    patient_id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    phone VARCHAR(15) UNIQUE,
+    date_of_birth DATE,
+    gender VARCHAR(10),
+    prime_status BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- 3️⃣ Doctors Table
+-- ============================================
+CREATE TABLE doctors (
+    doctor_id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    specialization VARCHAR(100) NOT NULL,
+    experience_years INT,
+    rating DECIMAL(2,1) CHECK (rating BETWEEN 0 AND 5),
+    verified_status BOOLEAN DEFAULT FALSE,
+    consultation_fee DECIMAL(10,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- 4️⃣ Clinics Table
+-- ============================================
+CREATE TABLE clinics (
+    clinic_id SERIAL PRIMARY KEY,
+    clinic_name VARCHAR(150) NOT NULL,
+    address TEXT,
+    city VARCHAR(100),
+    state VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- 5️⃣ Appointments Table
+-- ============================================
+CREATE TABLE appointments (
+    appointment_id SERIAL PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    clinic_id INT,
+    appointment_datetime TIMESTAMP NOT NULL,
+    mode VARCHAR(20) CHECK (mode IN ('online', 'offline')),
+    status VARCHAR(20) CHECK (status IN ('booked', 'completed', 'cancelled')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_patient
+        FOREIGN KEY (patient_id)
+        REFERENCES patients(patient_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_doctor
+        FOREIGN KEY (doctor_id)
+        REFERENCES doctors(doctor_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_clinic
+        FOREIGN KEY (clinic_id)
+        REFERENCES clinics(clinic_id)
+        ON DELETE SET NULL
+);
+
+-- ============================================
+-- 6️⃣ Consultations Table (1:1 with appointment)
+-- ============================================
+CREATE TABLE consultations (
+    consultation_id SERIAL PRIMARY KEY,
+    appointment_id INT UNIQUE NOT NULL,
+    notes TEXT,
+    duration_minutes INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_appointment
+        FOREIGN KEY (appointment_id)
+        REFERENCES appointments(appointment_id)
+        ON DELETE CASCADE
+);
+
+-- ============================================
+-- 7️⃣ Prescriptions Table (1:M with consultation)
+-- ============================================
+CREATE TABLE prescriptions (
+    prescription_id SERIAL PRIMARY KEY,
+    consultation_id INT NOT NULL,
+    medicine_name VARCHAR(150) NOT NULL,
+    dosage VARCHAR(100),
+    instructions TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_consultation
+        FOREIGN KEY (consultation_id)
+        REFERENCES consultations(consultation_id)
+        ON DELETE CASCADE
+);
+
+-- ============================================
+-- 8️⃣ Payments Table (1:1 with appointment)
+-- ============================================
+CREATE TABLE appointment_payments (
+    payment_id SERIAL PRIMARY KEY,
+    appointment_id INT UNIQUE NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method VARCHAR(50),
+    payment_status VARCHAR(20)
+        CHECK (payment_status IN ('pending', 'completed', 'failed')),
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_payment_appointment
+        FOREIGN KEY (appointment_id)
+        REFERENCES appointments(appointment_id)
+        ON DELETE CASCADE
+);
+
+-- ============================================
+-- 9️⃣ Indexes for Performance
+-- ============================================
+CREATE INDEX idx_patient_id ON appointments(patient_id);
+CREATE INDEX idx_doctor_id ON appointments(doctor_id);
+CREATE INDEX idx_consultation_id ON prescriptions(consultation_id);
+CREATE INDEX idx_payment_status ON appointment_payments(payment_status);
+
